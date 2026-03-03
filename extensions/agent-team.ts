@@ -59,7 +59,7 @@ function displayName(name: string): string {
 function parseTeamsYaml(raw: string): Record<string, string[]> {
 	const teams: Record<string, string[]> = {};
 	let current: string | null = null;
-	for (const line of raw.split("\n")) {
+	for (const line of raw.split(/\r?\n/)) {
 		const teamMatch = line.match(/^(\S[^:]*):$/);
 		if (teamMatch) {
 			current = teamMatch[1].trim();
@@ -79,11 +79,11 @@ function parseTeamsYaml(raw: string): Record<string, string[]> {
 function parseAgentFile(filePath: string): AgentDef | null {
 	try {
 		const raw = readFileSync(filePath, "utf-8");
-		const match = raw.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+		const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
 		if (!match) return null;
 
 		const frontmatter: Record<string, string> = {};
-		for (const line of match[1].split("\n")) {
+		for (const line of match[1].split(/\r?\n/)) {
 			const idx = line.indexOf(":");
 			if (idx > 0) {
 				frontmatter[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
@@ -343,31 +343,24 @@ export default function (pi: ExtensionAPI) {
 		const agentKey = state.def.name.toLowerCase().replace(/\s+/g, "-");
 		const agentSessionFile = join(sessionDir, `${agentKey}.json`);
 
-		// Build args — first run creates session, subsequent runs resume
-		const args = [
-			"--mode", "json",
-			"-p",
-			"--no-extensions",
-			"--model", model,
-			"--tools", state.def.tools,
-			"--thinking", "off",
-			"--append-system-prompt", state.def.systemPrompt,
-			"--session", agentSessionFile,
-		];
+		// Helper to escape and quote args for Windows cmd.exe
+		const q = (s: string) => `"${s.replace(/"/g, '\\"')}"`;
 
-		// Continue existing session if we have one
-		if (state.sessionFile) {
-			args.push("-c");
-		}
+		const modelStr = q(model);
+		const toolsStr = q(state.def.tools);
+		const promptStr = q(state.def.systemPrompt);
+		const sessionStr = q(agentSessionFile);
+		const taskStr = q(task);
 
-		args.push(task);
+		const cmd = `pi --mode json -p --no-extensions --model ${modelStr} --tools ${toolsStr} --thinking off --append-system-prompt ${promptStr} --session ${sessionStr}${state.sessionFile ? " -c" : ""} ${taskStr}`;
 
 		const textChunks: string[] = [];
 
 		return new Promise((resolve) => {
-			const proc = spawn("pi", args, {
+			const proc = spawn(cmd, {
 				stdio: ["ignore", "pipe", "pipe"],
 				env: { ...process.env },
+				shell: true,
 			});
 
 			let buffer = "";

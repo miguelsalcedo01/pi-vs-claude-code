@@ -69,7 +69,7 @@ function parseChainYaml(raw: string): ChainDef[] {
 	let current: ChainDef | null = null;
 	let currentStep: ChainStep | null = null;
 
-	for (const line of raw.split("\n")) {
+	for (const line of raw.split(/\r?\n/)) {
 		// Chain name: top-level key
 		const chainMatch = line.match(/^(\S[^:]*):$/);
 		if (chainMatch) {
@@ -135,11 +135,11 @@ function parseChainYaml(raw: string): ChainDef[] {
 function parseAgentFile(filePath: string): AgentDef | null {
 	try {
 		const raw = readFileSync(filePath, "utf-8");
-		const match = raw.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+		const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
 		if (!match) return null;
 
 		const frontmatter: Record<string, string> = {};
-		for (const line of match[1].split("\n")) {
+		for (const line of match[1].split(/\r?\n/)) {
 			const idx = line.indexOf(":");
 			if (idx > 0) {
 				frontmatter[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
@@ -342,31 +342,26 @@ export default function (pi: ExtensionAPI) {
 		const agentSessionFile = join(sessionDir, `chain-${agentKey}.json`);
 		const hasSession = agentSessions.get(agentKey);
 
-		const args = [
-			"--mode", "json",
-			"-p",
-			"--no-extensions",
-			"--model", model,
-			"--tools", agentDef.tools,
-			"--thinking", "off",
-			"--append-system-prompt", agentDef.systemPrompt,
-			"--session", agentSessionFile,
-		];
+		// Helper to escape and quote args for Windows cmd.exe
+		const q = (s: string) => `"${s.replace(/"/g, '\\"')}"`;
 
-		if (hasSession) {
-			args.push("-c");
-		}
+		const modelStr = q(model);
+		const toolsStr = q(agentDef.tools);
+		const promptStr = q(agentDef.systemPrompt);
+		const sessionStr = q(agentSessionFile);
+		const taskStr = q(task);
 
-		args.push(task);
+		const cmd = `pi --mode json -p --no-extensions --model ${modelStr} --tools ${toolsStr} --thinking off --append-system-prompt ${promptStr} --session ${sessionStr}${hasSession ? " -c" : ""} ${taskStr}`;
 
 		const textChunks: string[] = [];
 		const startTime = Date.now();
 		const state = stepStates[stepIndex];
 
 		return new Promise((resolve) => {
-			const proc = spawn("pi", args, {
+			const proc = spawn(cmd, {
 				stdio: ["ignore", "pipe", "pipe"],
 				env: { ...process.env },
+				shell: true,
 			});
 
 			const timer = setInterval(() => {

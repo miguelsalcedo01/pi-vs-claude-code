@@ -1,6 +1,16 @@
 {
-  "theme": "synthwave",
-  "prompts": [
-    "../.claude/commands"
+  "extensions": [
+    "./extensions/agent-team.ts",
+    "./extensions/damage-control.ts",
+    "./extensions/tilldone.ts",
+    "./extensions/tool-counter-widget.ts",
+    "./extensions/cross-agent.ts",
+    "./extensions/minimal.ts"
+  ],
+  "skills": [
+    "./.pi/skills"
+  ],
+  "themes": [
+    "./.pi/themes"
   ]
 }

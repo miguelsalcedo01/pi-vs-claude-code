@@ -52,11 +52,11 @@ function displayName(name: string): string {
 function parseAgentFile(filePath: string): ExpertDef | null {
 	try {
 		const raw = readFileSync(filePath, "utf-8");
-		const match = raw.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+		const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
 		if (!match) return null;
 
 		const frontmatter: Record<string, string> = {};
-		for (const line of match[1].split("\n")) {
+		for (const line of match[1].split(/\r?\n/)) {
 			const idx = line.indexOf(":");
 			if (idx > 0) {
 				frontmatter[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
@@ -294,6 +294,7 @@ export default function (pi: ExtensionAPI) {
 			const proc = spawn("pi", args, {
 				stdio: ["ignore", "pipe", "pipe"],
 				env: { ...process.env },
+				shell: true,
 			});
 
 			let buffer = "";

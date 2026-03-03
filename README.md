@@ -91,6 +91,8 @@ bun install
 
 ---
 
+> [!NOTE]
+> Penny is now officially taming the Windows sub-processes. No more loose loops on her watch! 🦞
 
 ## Usage
 
